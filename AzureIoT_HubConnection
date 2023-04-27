@@ -1,0 +1,46 @@
+import cv2
+import requests
+import json
+from azure.iot.device import IoTHubDeviceClient, Message
+
+# Azure IoT Hub Connection String
+CONNECTION_STRING = "your-iot-hub-connection-string"
+
+# Cognitive Services Endpoint and API Key
+ENDPOINT = "https://your-cognitive-services-endpoint.cognitiveservices.azure.com/"
+KEY = "your-cognitive-services-api-key"
+
+# Define the capture device (camera)
+cap = cv2.VideoCapture(0)
+
+# Define the function for sending the analyzed data to IoT Hub
+def send_to_azure_iot_hub(data):
+    try:
+        # Create an IoT Hub client
+        client = IoTHubDeviceClient.create_from_connection_string(CONNECTION_STRING)
+
+        # Build the message with the analyzed data
+        message = Message(data)
+
+        # Send the message to IoT Hub
+        client.send_message(message)
+
+        print("Message sent to Azure IoT Hub:", data)
+
+    except Exception as ex:
+        print("Error sending message to Azure IoT Hub:", ex)
+
+# Run the camera and analyze the frames
+while True:
+    ret, frame = cap.read()
+
+    # Perform the image analysis using Azure Cognitive Services
+    headers = {'Ocp-Apim-Subscription-Key': KEY, 'Content-Type': 'application/octet-stream'}
+    params = {'visualFeatures': 'Categories,Tags,Description'}
+    response = requests.post(ENDPOINT + "vision/v3.1/analyze", headers=headers, params=params, data=frame.tobytes())
+
+    # Extract the analyzed data
+    data = json.dumps(response.json())
+
+    # Send the analyzed data to Azure IoT Hub
+    send_to_azure_iot_hub(data)
